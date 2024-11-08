@@ -306,7 +306,7 @@ inline void inc_hl(){
 }
 
 inline void dec_b(){
-    half_carry_addition_8bit(registers.b, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_subtraction_8bit(registers.b, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     --registers.b == 0 ? set_flag(ZERO) : unset_flag(ZERO);
     set_flag(SUBTRACTION);
     //printf("B: %#X\n", registers.b);
@@ -314,7 +314,7 @@ inline void dec_b(){
 }
 
 inline void dec_c(){
-    half_carry_addition_8bit(registers.c, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_subtraction_8bit(registers.c, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     --registers.c == 0 ? set_flag(ZERO) : unset_flag(ZERO);
     set_flag(SUBTRACTION);
     add_cycles(4);
