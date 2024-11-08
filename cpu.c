@@ -49,11 +49,47 @@ inline unsigned short memory_read_pc_word(){
 
 }
 
+inline int half_carry_addition_8bit(unsigned char b1, unsigned char b2){
+    return (((b1 & 0x0F) + (b2 & 0x0F)) & 0x10) == 0x10;
+}
+
+inline int half_carry_addition_16bit(unsigned short w1, unsigned short w2){
+    return (((w1 & 0x00FF) + (w2 & 0x00FF)) & 0x0100) == 0x0100;
+}
+
+inline int half_carry_subtraction_8bit(unsigned char b1, unsigned char b2){
+    return (int)(b1 & 0x0F) - (int)(b2 & 0x0F) < 0;
+}
+
+inline int half_carry_subtraction_16bit(unsigned short w1, unsigned short w2){
+    return (int)(w1 & 0x00FF) - (int)(w2 & 0x00FF) < 0;
+}
+
+inline int carry_addition_8bit(unsigned char b1, unsigned char b2){
+    return (int)b1 + (int)b2 > 0xFF;
+}
+
+inline int carry_addition_16bit(unsigned short w1, unsigned short w2){
+    return (int)w1 + (int)w2 > 0xFFFF;
+}
+
+inline int carry_subtraction_8bit(unsigned char b1, unsigned char b2){
+    return (int)b1 - (int)b2 < 0;
+}
+
+inline int carry_subtraction_16bit(unsigned short w1, unsigned short w2){
+    return (int)w1 - (int)w2 < 0;
+}
 
 inline void jmp_a16(){
     registers.pc = memory_read_pc_word();
     //printf("Jump to %X\n", registers.pc);
     add_cycles(12);
+}
+
+inline void jmp_hl(){
+    registers.pc = registers.hl;
+    add_cycles(4);
 }
 
 inline void jmp_nz_r8(){
@@ -72,9 +108,8 @@ inline void cp_d8(){
     unsigned char other_byte = memory_read_pc_byte();
     printf("A: %#X D8: %#X\n", registers.a, other_byte);
     registers.pc++;
-    signed short result = registers.a - other_byte;
     registers.a == other_byte ? set_flag(ZERO) : unset_flag(ZERO);
-    ~(registers.a ^ other_byte ^ result) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_subtraction_8bit(registers.a, other_byte) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     registers.a < other_byte ? set_flag(CARRY) : unset_flag(CARRY);
     set_flag(SUBTRACTION);
     add_cycles(8);
@@ -84,6 +119,15 @@ inline void xor_a(){
     registers.a ^= registers.a;
     clear_flags();
     set_flag(ZERO);
+    add_cycles(4);
+}
+
+inline void xor_c(){
+    registers.a ^= registers.c;
+    clear_flags();
+    if(!registers.a){
+        set_flag(ZERO);
+    }
     add_cycles(4);
 }
 
@@ -110,6 +154,32 @@ inline void ld_a_b(){
     add_cycles(4);
 }
 
+inline void ld_a_c(){
+    registers.a = registers.c;
+    add_cycles(4);
+}
+
+inline void ld_b_a(){
+    registers.b = registers.a;
+    add_cycles(4);
+}
+
+inline void ld_c_a(){
+    registers.c = registers.a;
+    add_cycles(4);
+}
+
+inline void ld_e_a(){
+    registers.e = registers.a;
+    add_cycles(4);
+}
+
+inline void ld_d_d8(){
+    registers.d = memory_read_pc_byte();
+    registers.pc++;
+    add_cycles(8);
+}
+
 inline void ldh_a8_a(){
     unsigned char offset = memory_read_pc_byte();
     mem_write_byte(0xFF00 + offset, registers.a);
@@ -132,6 +202,16 @@ inline void ldh_a_a8(){
 
 inline void ldh_indirect_c_a(){
     mem_write_byte(registers.c | 0xFF00, registers.a); // write register a to address stored in register c | 0xFF00
+    add_cycles(8);
+}
+
+inline void ld_d_indirect_hl(){
+    registers.d = mem_read_byte(registers.hl);
+    add_cycles(8);
+}
+
+inline void ld_e_indirect_hl(){
+    registers.e = mem_read_byte(registers.hl);
     add_cycles(8);
 }
 
@@ -181,21 +261,52 @@ inline void call_a16(){
     registers.pc += 2; // move pc past the address spot
     stack_write_word(registers.pc); // write this spot onto stack
     registers.pc = addr;
+    printf("***CALL*** PC: %#06X\n\n", registers.pc);
     add_cycles(24);
 }
 
+inline void add_a_a(){
+    clear_flags();
+    if(carry_addition_8bit(registers.a, registers.a)){
+        set_flag(CARRY);
+    }
+    if(half_carry_addition_8bit(registers.a, registers.a)){
+        set_flag(HALF_CARY);
+    }
+    registers.a += registers.a;
+    if(!registers.a){
+        set_flag(ZERO);
+    }
+    add_cycles(4);
+}
+
+inline void add_hl_de(){
+    unset_flag(SUBTRACTION);
+    if(half_carry_addition_16bit(registers.hl, registers.de)){
+        set_flag(HALF_CARY);
+    }
+    if(carry_addition_16bit(registers.hl, registers.de)){
+        set_flag(CARRY);
+    }
+    registers.hl += registers.de;
+    add_cycles(8);
+}
+
 inline void inc_c(){
-    unsigned short result = registers.c + 1;
-    ~(registers.c ^ 0x1 ^ result) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_addition_8bit(registers.c, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     registers.c++;
     registers.c ? unset_flag(ZERO) : set_flag(ZERO);
     unset_flag(SUBTRACTION);
     add_cycles(4);
 }
 
+inline void inc_hl(){
+    registers.hl++;
+    add_cycles(8);
+}
+
 inline void dec_b(){
-    unsigned short result = registers.b - 0x1;
-    ~(registers.b ^ 0x1 ^ result) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_addition_8bit(registers.b, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     --registers.b == 0 ? set_flag(ZERO) : unset_flag(ZERO);
     set_flag(SUBTRACTION);
     //printf("B: %#X\n", registers.b);
@@ -203,8 +314,7 @@ inline void dec_b(){
 }
 
 inline void dec_c(){
-    unsigned short result = registers.c - 0x1;
-    ~(registers.c ^ 0x1 ^ result) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    half_carry_addition_8bit(registers.c, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     --registers.c == 0 ? set_flag(ZERO) : unset_flag(ZERO);
     set_flag(SUBTRACTION);
     add_cycles(4);
@@ -215,17 +325,76 @@ inline void dec_bc(){
     add_cycles(8);
 }
 
+inline void cpl(){
+    registers.a = ~registers.a;
+    set_flag(SUBTRACTION);
+    set_flag(HALF_CARY);
+    add_cycles(4);
+}
+
+inline void and_c(){
+    registers.a &= registers.c;
+    clear_flags();
+    set_flag(HALF_CARY);
+    if(!registers.a){
+        set_flag(ZERO);
+    }
+    add_cycles(4);
+}
+
+inline void and_d8(){
+    registers.a &= memory_read_pc_byte();
+    registers.pc++;
+    unset_flag(CARRY);
+    unset_flag(SUBTRACTION);
+    set_flag(HALF_CARY);
+    registers.a ? unset_flag(ZERO) : set_flag(ZERO);
+    add_cycles(8);
+}
+
+inline void or_b(){
+    registers.a |= registers.b;
+    clear_flags();
+    if(!registers.a){
+        set_flag(ZERO);
+    }
+    add_cycles(4);
+}
+
 inline void or_c(){
     registers.a |= registers.c;
     clear_flags();
-    !registers.a ? set_flag(ZERO) : unset_flag(ZERO);
+    if(!registers.a){
+        set_flag(ZERO);
+    }
     add_cycles(4);
+}
+
+inline void push_de(){
+    stack_write_word(registers.de);
+    add_cycles(16);
+}
+
+inline void pop_hl(){
+    registers.hl = stack_pop_word();
+    add_cycles(12);
 }
 
 inline void ret(){
     registers.pc = stack_pop_word();
-    printf("/n***RETURN*** PC: %04X\n", registers.pc);
+    printf("***RETURN*** PC: %04X\n\n", registers.pc);
     add_cycles(16);
+}
+
+inline void rst_28h(){
+    stack_write_word(registers.pc);
+    registers.pc = 0x28;
+    add_cycles(16);
+}
+
+inline void ei(){
+    registers.interupts = 1;
+    add_cycles(4);
 }
 
 inline void di(){
@@ -233,14 +402,42 @@ inline void di(){
     add_cycles(4);
 }
 
+inline void cb_swap_a(){
+    registers.a = ((registers.a & 0xF0) >> 4) | ((registers.a & 0x0F) << 4); // Swap upper and lower nibbles of register A
+    clear_flags();
+    if(!registers.a){
+        set_flag(ZERO);
+    }
+    add_cycles(8);
+}
+
 inline void add_cycles(int cycles){
     registers.machine_cycles += cycles;
 }
 
-void unimplemented_instruction(unsigned char code){
-    printf("%s 0x%02X\n", "Unimplemented opcode: ", code);
+void unimplemented_cb_instruction(unsigned char code){
+    printf("%s %#04X\n", "Unimplemented CB opcode: ", code);
     exit(1);
 }
+
+void unimplemented_instruction(unsigned char code){
+    printf("%s %#04X\n", "Unimplemented opcode: ", code);
+    exit(1);
+}
+
+inline void cb_prefix(){
+    unsigned char cb_opcode = memory_read_pc_byte();
+    registers.pc++;
+    switch (cb_opcode){
+        case 0x37:
+            cb_swap_a();
+            break;
+        default:
+            unimplemented_cb_instruction(cb_opcode);
+            break;
+    }
+}
+
 
 inline int execute_opcode(){
 
@@ -278,14 +475,26 @@ inline int execute_opcode(){
         case 0x0E:
             ld_c_d8();
             break;
+        case 0x16:
+            ld_d_d8();
+            break;
+        case 0x19:
+            add_hl_de();
+            break;
         case 0x20:
             jmp_nz_r8();
             break;
         case 0x21:
             ld_hl_d16();
             break;
+        case 0x23:
+            inc_hl();
+            break;
         case 0x2A:
             ld_a_hl_inc();
+            break;
+        case 0x2F:
+            cpl();
             break;
         case 0x31:
             ld_sp_d16();
@@ -299,11 +508,41 @@ inline int execute_opcode(){
         case 0x3E:
             ld_a_d8();
             break;
+        case 0x47:
+            ld_b_a();
+            break;
+        case 0x4F:
+            ld_c_a();
+            break;
+        case 0x56:
+            ld_d_indirect_hl();
+            break;
+        case 0x5E:
+            ld_e_indirect_hl();
+            break;
+        case 0x5F:
+            ld_e_a();
+            break;
         case 0x78:
             ld_a_b();
             break;
+        case 0x79:
+            ld_a_c();
+            break;
+        case 0x87:
+            add_a_a();
+            break;
+        case 0xA1:
+            and_c();
+            break;
+        case 0xA9:
+            xor_c();
+            break;
         case 0xAF:
             xor_a();
+            break;
+        case 0xB0:
+            or_b();
             break;
         case 0xB1:
             or_c();
@@ -314,23 +553,44 @@ inline int execute_opcode(){
         case 0xC9:
             ret();
             break;
+        case 0xCB:
+            cb_prefix();
+            break;
         case 0xCD:
             call_a16();
+            break;
+        case 0xD5:
+            push_de();
             break;
         case 0xE0:
             ldh_a8_a();
             break;
+        case 0xE1:
+            pop_hl();
+            break;
         case 0xE2:
             ldh_indirect_c_a();
             break;
+        case 0xE6:
+            and_d8();
+            break;
+        case 0xE9:
+            jmp_hl();
+            break;
         case 0xEA:
             ld_indirect_a16_a();
+            break;
+        case 0xEF:
+            rst_28h();
             break;
         case 0xF0:
             ldh_a_a8();
             break;
         case 0xF3:
             di();
+            break;
+        case 0xFB:
+            ei();
             break;
         case 0xFE:
             cp_d8();
@@ -371,6 +631,7 @@ int main(int argc, char *argv[]){
     load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
     init_memory();
     printf("%X\n", registers.pc);
+
     while(1){
         
         execute_opcode();
