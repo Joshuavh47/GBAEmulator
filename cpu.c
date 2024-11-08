@@ -177,9 +177,9 @@ inline void ld_bc_d16(){
 }
 
 inline void call_a16(){
-    unsigned short addr = memory_read_pc_word();
-    registers.pc += 2;
-    stack_write_word(memory_read_pc_word());
+    unsigned short addr = memory_read_pc_word(); // get address of called function
+    registers.pc += 2; // move pc past the address spot
+    stack_write_word(registers.pc); // write this spot onto stack
     registers.pc = addr;
     add_cycles(24);
 }
@@ -198,7 +198,7 @@ inline void dec_b(){
     ~(registers.b ^ 0x1 ^ result) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     --registers.b == 0 ? set_flag(ZERO) : unset_flag(ZERO);
     set_flag(SUBTRACTION);
-    printf("B: %#X\n", registers.b);
+    //printf("B: %#X\n", registers.b);
     add_cycles(4);
 }
 
@@ -224,6 +224,7 @@ inline void or_c(){
 
 inline void ret(){
     registers.pc = stack_pop_word();
+    printf("/n***RETURN*** PC: %04X\n", registers.pc);
     add_cycles(16);
 }
 
@@ -246,7 +247,9 @@ inline int execute_opcode(){
     
     unsigned char current_opcode = memory_read_pc_byte();
     
-    printf("PC: %#X Inst: %#X ", registers.pc, current_opcode);
+    printf("PC: %#06X Inst: %#04X ", registers.pc, current_opcode);
+    printf("A: %#06X B: %#06X  C: %#06X  D: %#06X  E: %#06X  F: %#06X  H: %#06X  L: %#06X MC: %d\n\n", registers.a, registers.b,
+         registers.c, registers.d, registers.e, registers.f, registers.h, registers.l, registers.machine_cycles);
 
     //printf("PC:%X PC: %02X Flags: %X Interrupts: %X\n", registers.pc, current_opcode, registers.f, interrupt_register);
     registers.pc++;
@@ -338,7 +341,7 @@ inline int execute_opcode(){
 
 
     }
-    printf("A: %#X MC: %d\n", registers.a, registers.machine_cycles);
+    
     
 
     return 0;

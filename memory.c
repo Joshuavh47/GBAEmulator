@@ -85,8 +85,8 @@ inline unsigned short stack_pop_word(){
 
 inline void stack_write_word(unsigned short data){
     registers.sp -= 2;
-    mem_write_byte(registers.sp, data >> 8);
-    mem_write_byte(registers.sp + 1, data & 0xFF);
+    mem_write_byte(registers.sp, data & 0xFF);
+    mem_write_byte(registers.sp + 1, data >> 8);
 }
 
 
