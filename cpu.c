@@ -631,10 +631,11 @@ int main(int argc, char *argv[]){
     load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
     init_memory();
     printf("%X\n", registers.pc);
-
+    void test();
+    test();
     while(1){
         
-        execute_opcode();
+        //execute_opcode();
         
         
     }
