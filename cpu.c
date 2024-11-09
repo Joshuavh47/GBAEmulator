@@ -92,7 +92,7 @@ inline void jmp_hl(){
     add_cycles(4);
 }
 
-inline void jmp_nz_r8(){
+inline void jr_nz_r8(){
     signed char offset = memory_read_pc_byte();
     registers.pc++;
     if(get_flag(ZERO)){
@@ -101,6 +101,18 @@ inline void jmp_nz_r8(){
     else{
         registers.pc += offset;
         add_cycles(12);
+    }
+}
+
+inline void jr_z_d8(){
+    signed char offset = memory_read_pc_byte();
+    registers.pc++;
+    if(get_flag(ZERO)){
+        registers.pc += offset;
+        add_cycles(12);
+    }
+    else{
+        add_cycles(8);
     }
 }
 
@@ -191,9 +203,19 @@ inline void ldh_a_a8(){
     unsigned char offset = memory_read_pc_byte();
     registers.a = 0xFF00 + offset;
 
-    if(registers.pc == 0x234){ // TEMPORARY PATCH BECAUSE I HAVE NO INTERRUPTS/TIMER/VIDEO/AUDIO
-        registers.a = 0x94;
-    }
+    /*
+    * TEMPORARY PATCH BECAUSE I HAVE NO INTERRUPTS/TIMER/VIDEO/AUDIO            *
+    * In this section of rom, the LCD Y coordinate gets loaded into a.          *
+    * Since this increases automatically every scanline, the conditional jump   *
+    * will always happen. Once I implement video, this will be taken out.       *
+    */
+
+    if(registers.pc == 0x234){  
+        registers.a = 0x94;     
+    }                           
+                                
+                                
+                                
 
     registers.pc++;
     add_cycles(12);
@@ -254,6 +276,13 @@ inline void ld_bc_d16(){
     registers.bc = memory_read_pc_word();
     registers.pc += 2;
     add_cycles(12);
+}
+
+inline void ld_a_indirect_a16(){
+    unsigned short addr = memory_read_pc_word();
+    registers.pc += 2;
+    registers.a = mem_read_byte(addr);
+    add_cycles(16);
 }
 
 inline void call_a16(){
@@ -332,6 +361,15 @@ inline void cpl(){
     add_cycles(4);
 }
 
+inline void and_a(){
+    clear_flags();
+    set_flag(HALF_CARY);
+    if(!registers.a){
+        set_flag(ZERO);
+    }
+    add_cycles(4);
+}
+
 inline void and_c(){
     registers.a &= registers.c;
     clear_flags();
@@ -370,8 +408,23 @@ inline void or_c(){
     add_cycles(4);
 }
 
+inline void push_af(){
+    stack_write_word(registers.af);
+    add_cycles(16);
+}
+
+inline void push_bc(){
+    stack_write_word(registers.bc);
+    add_cycles(16);
+}
+
 inline void push_de(){
     stack_write_word(registers.de);
+    add_cycles(16);
+}
+
+inline void push_hl(){
+    stack_write_word(registers.hl);
     add_cycles(16);
 }
 
@@ -384,6 +437,28 @@ inline void ret(){
     registers.pc = stack_pop_word();
     printf("***RETURN*** PC: %04X\n\n", registers.pc);
     add_cycles(16);
+}
+
+inline void ret_nz(){
+    if(!get_flag(ZERO)){
+        registers.pc = stack_pop_word();
+        printf("***RETURN*** PC: %04X\n\n", registers.pc);
+        add_cycles(20);
+    }
+    else{
+        add_cycles(8);
+    }
+}
+
+inline void ret_z(){
+    if(get_flag(ZERO)){
+        registers.pc = stack_pop_word();
+        printf("***RETURN*** PC: %04X\n\n", registers.pc);
+        add_cycles(20);
+    }
+    else{
+        add_cycles(8);
+    }
 }
 
 inline void rst_28h(){
@@ -482,13 +557,16 @@ inline int execute_opcode(){
             add_hl_de();
             break;
         case 0x20:
-            jmp_nz_r8();
+            jr_nz_r8();
             break;
         case 0x21:
             ld_hl_d16();
             break;
         case 0x23:
             inc_hl();
+            break;
+        case 0x28:
+            jr_z_d8();
             break;
         case 0x2A:
             ld_a_hl_inc();
@@ -535,6 +613,9 @@ inline int execute_opcode(){
         case 0xA1:
             and_c();
             break;
+        case 0xA7:
+            and_a();
+            break;
         case 0xA9:
             xor_c();
             break;
@@ -547,8 +628,17 @@ inline int execute_opcode(){
         case 0xB1:
             or_c();
             break;
+        case 0xC0:
+            ret_nz();
+            break;
         case 0xC3:
             jmp_a16();
+            break;
+        case 0xC5:
+            push_bc();
+            break;
+        case 0xC8:
+            ret_z();
             break;
         case 0xC9:
             ret();
@@ -574,6 +664,9 @@ inline int execute_opcode(){
         case 0xE6:
             and_d8();
             break;
+        case 0xE5:
+            push_hl();
+            break;
         case 0xE9:
             jmp_hl();
             break;
@@ -589,6 +682,12 @@ inline int execute_opcode(){
         case 0xF3:
             di();
             break;
+        case 0xF5:
+            push_af();
+            break;
+        case 0xFA:
+            ld_a_indirect_a16();
+            break;
         case 0xFB:
             ei();
             break;
@@ -602,7 +701,44 @@ inline int execute_opcode(){
 
     }
     
+    /* Interupt Handling */
     
+    unsigned char interrupts_allowed = mem_read_byte(0xFFFF);
+    unsigned char queued_interrupts = mem_read_byte(0xFF0F);
+    unsigned char masked_interrupts = interrupts_allowed & queued_interrupts;
+
+    if(registers.interupts){
+        if(masked_interrupts & 0x01){
+            registers.interupts = 0;
+            stack_write_word(registers.pc);
+            registers.machine_cycles += 20;
+            registers.pc = 0x40;
+        }
+        if(masked_interrupts & 0x02){
+            registers.interupts = 0;
+            stack_write_word(registers.pc);
+            registers.machine_cycles += 20;
+            registers.pc = 0x48;
+        }
+        if(masked_interrupts & 0x04){
+            registers.interupts = 0;
+            stack_write_word(registers.pc);
+            registers.machine_cycles += 20;
+            registers.pc = 0x50;
+        }
+        if(masked_interrupts & 0x08){
+            registers.interupts = 0;
+            stack_write_word(registers.pc);
+            registers.machine_cycles += 20;
+            registers.pc = 0x58;
+        }
+        if(masked_interrupts & 0x10){
+            registers.interupts = 0;
+            stack_write_word(registers.pc);
+            registers.machine_cycles += 20;
+            registers.pc = 0x60;
+        }
+    }
 
     return 0;
 }
@@ -631,11 +767,11 @@ int main(int argc, char *argv[]){
     load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
     init_memory();
     printf("%X\n", registers.pc);
-    void test();
-    test();
+    //void test();
+    //test();
     while(1){
         
-        //execute_opcode();
+        execute_opcode();
         
         
     }
