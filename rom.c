@@ -12,6 +12,7 @@ int load_rom(char* filename){
     }
     fseek(fp, 0, SEEK_END);
     rom_size = ftell(fp);
+    printf("%##lX\n", rom_size);
     rewind(fp);
     rom_data = malloc(rom_size);
     fread(rom_data, rom_size, 1, fp);

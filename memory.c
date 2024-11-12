@@ -46,9 +46,13 @@ inline void mem_write_byte(unsigned short addr, unsigned char data){
     }
     else if(addr >= 0xFF00 && addr <= 0xFF4B){
         io_bank[addr & 0x00FF] = data;
+        if(addr == 0xFF46){
+            printf("*** START DMA/OAM TRANSFER %#04X\n", data);
+        }
     }
     else if(addr >= 0xFF80 && addr <= 0xFFFE){
         high_ram[addr - 0xFF80] = data;
+        printf("***WROTE %#04X TO ADDRESS %#06X***\n", data, addr);
     }
     else if(addr == 0xFF0F){
         interrupt_flags = data;
@@ -59,7 +63,10 @@ inline void mem_write_byte(unsigned short addr, unsigned char data){
 }
 
 inline unsigned char mem_read_byte(unsigned short addr){
-    if(addr >= 0xC000 && addr <= 0xCFFF){
+    if(addr<0x8000){
+        return rom_bank[addr];
+    }
+    else if(addr >= 0xC000 && addr <= 0xCFFF){
         return working_ram[addr - 0xC000];
     }
     else if(addr >= 0xFF00 && addr <= 0xFF4B){

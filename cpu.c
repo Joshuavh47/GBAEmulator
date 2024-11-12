@@ -39,7 +39,7 @@ unsigned char get_flag(unsigned char flag){ //check the value of a flag
 }
 
 inline unsigned char memory_read_pc_byte(){
-    return rom_bank[registers.pc];    
+    return mem_read_byte(registers.pc);    
 }
 
 inline unsigned short memory_read_pc_word(){
@@ -769,6 +769,7 @@ int main(int argc, char *argv[]){
     printf("%X\n", registers.pc);
     //void test();
     //test();
+    //printf("%#02X\n", rom_bank[0xFFBA]);
     while(1){
         
         execute_opcode();
