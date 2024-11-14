@@ -43,8 +43,8 @@ inline unsigned char memory_read_pc_byte(){
 }
 
 inline unsigned short memory_read_pc_word(){
-    unsigned char b1 = rom_bank[registers.pc];
-    unsigned char b2 = rom_bank[registers.pc+1];
+    unsigned char b1 = mem_read_byte(registers.pc);
+    unsigned char b2 = mem_read_byte(registers.pc+1);
     return (b2<<8)|b1;
 
 }
@@ -92,6 +92,13 @@ inline void jmp_hl(){
     add_cycles(4);
 }
 
+inline void jr_r8(){
+    signed char offset = memory_read_pc_byte();
+    registers.pc++;
+    registers.pc += offset;
+    add_cycles(12);
+}
+
 inline void jr_nz_r8(){
     signed char offset = memory_read_pc_byte();
     registers.pc++;
@@ -104,7 +111,7 @@ inline void jr_nz_r8(){
     }
 }
 
-inline void jr_z_d8(){
+inline void jr_z_r8(){
     signed char offset = memory_read_pc_byte();
     registers.pc++;
     if(get_flag(ZERO)){
@@ -176,8 +183,18 @@ inline void ld_b_a(){
     add_cycles(4);
 }
 
+inline void ld_b_c(){
+    registers.b = registers.c;
+    add_cycles(4);
+}
+
 inline void ld_c_a(){
     registers.c = registers.a;
+    add_cycles(4);
+}
+
+inline void ld_d_a(){
+    registers.d = registers.a;
     add_cycles(4);
 }
 
@@ -227,6 +244,11 @@ inline void ldh_indirect_c_a(){
     add_cycles(8);
 }
 
+inline void ld_a_indirect_de(){
+    registers.a = mem_read_byte(registers.de);
+    add_cycles(8);
+}
+
 inline void ld_d_indirect_hl(){
     registers.d = mem_read_byte(registers.hl);
     add_cycles(8);
@@ -241,6 +263,11 @@ inline void ld_hl_d16(){
     registers.hl = memory_read_pc_word();
     registers.pc += 2;
     add_cycles(12);
+}
+
+inline void ldi_indirect_hl_a(){
+    mem_write_byte(registers.hl++, registers.a);
+    add_cycles(8);
 }
 
 inline void ldd_hl_a(){ // do you set carry and hc with this instruction??
@@ -259,6 +286,12 @@ inline void ld_indirect_a16_a(){
     mem_write_byte(memory_read_pc_word(), registers.a);
     registers.pc += 2;
     add_cycles(16);
+}
+
+inline void ld_de_d16(){
+    registers.de = memory_read_pc_word();
+    registers.pc += 2;
+    add_cycles(12);
 }
 
 inline void ld_sp_d16(){
@@ -309,6 +342,22 @@ inline void add_a_a(){
     add_cycles(4);
 }
 
+inline void add_a_d(){
+    clear_flags();
+    if(carry_addition_8bit(registers.a, registers.d)){
+        set_flag(CARRY);
+    }
+    if(half_carry_addition_8bit(registers.a, registers.d)){
+        set_flag(HALF_CARY);
+    }
+    registers.a += registers.d;
+    if(!registers.d){
+        set_flag(ZERO);
+    }
+    add_cycles(4);
+
+}
+
 inline void add_hl_de(){
     unset_flag(SUBTRACTION);
     if(half_carry_addition_16bit(registers.hl, registers.de)){
@@ -321,6 +370,14 @@ inline void add_hl_de(){
     add_cycles(8);
 }
 
+inline void inc_a(){
+    half_carry_addition_8bit(registers.a, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    registers.a++;
+    registers.a ? unset_flag(ZERO) : set_flag(ZERO);
+    unset_flag(SUBTRACTION);
+    add_cycles(4);
+}
+
 inline void inc_c(){
     half_carry_addition_8bit(registers.c, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
     registers.c++;
@@ -329,9 +386,41 @@ inline void inc_c(){
     add_cycles(4);
 }
 
+inline void inc_e(){
+    half_carry_addition_8bit(registers.e, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    registers.e++;
+    registers.e ? unset_flag(ZERO) : set_flag(ZERO);
+    unset_flag(SUBTRACTION);
+    add_cycles(4);
+}
+
+inline void inc_l(){
+    half_carry_addition_8bit(registers.l, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    registers.l++;
+    registers.l ? unset_flag(ZERO) : set_flag(ZERO);
+    unset_flag(SUBTRACTION);
+    add_cycles(4);
+}
+
 inline void inc_hl(){
     registers.hl++;
     add_cycles(8);
+}
+
+inline void inc_indirect_hl(){
+    unsigned char before_inc = mem_read_byte(registers.hl);
+    half_carry_addition_8bit(before_inc, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    mem_write_byte(registers.hl, ++before_inc);
+    before_inc ? unset_flag(ZERO) : set_flag(ZERO);
+    unset_flag(SUBTRACTION);
+    add_cycles(12);
+}
+
+inline void dec_a(){
+    half_carry_subtraction_8bit(registers.a, 1) ? set_flag(HALF_CARY) : unset_flag(HALF_CARY);
+    --registers.a == 0 ? set_flag(ZERO) : unset_flag(ZERO);
+    set_flag(SUBTRACTION);
+    add_cycles(4);
 }
 
 inline void dec_b(){
@@ -428,6 +517,21 @@ inline void push_hl(){
     add_cycles(16);
 }
 
+inline void pop_af(){
+    registers.af = stack_pop_word();
+    add_cycles(12);
+}
+
+inline void pop_bc(){
+    registers.bc = stack_pop_word();
+    add_cycles(12);
+}
+
+inline void pop_de(){
+    registers.de = stack_pop_word();
+    add_cycles(12);
+}
+
 inline void pop_hl(){
     registers.hl = stack_pop_word();
     add_cycles(12);
@@ -435,7 +539,14 @@ inline void pop_hl(){
 
 inline void ret(){
     registers.pc = stack_pop_word();
-    printf("***RETURN*** PC: %04X\n\n", registers.pc);
+    printf("***RETURN*** PC: %#06X\n\n", registers.pc);
+    add_cycles(16);
+}
+
+inline void reti(){
+    registers.pc = stack_pop_word();
+    printf("***RETURN FROM INTERRUPT*** PC: %#06X\n\n", registers.pc);
+    registers.interupts = 1;
     add_cycles(16);
 }
 
@@ -486,6 +597,13 @@ inline void cb_swap_a(){
     add_cycles(8);
 }
 
+inline void cb_bit_0_c(){
+    registers.c & 0x1 ? set_flag(ZERO) : unset_flag(ZERO);
+    unset_flag(SUBTRACTION);
+    set_flag(HALF_CARY);
+    add_cycles(8);
+}
+
 inline void add_cycles(int cycles){
     registers.machine_cycles += cycles;
 }
@@ -506,6 +624,9 @@ inline void cb_prefix(){
     switch (cb_opcode){
         case 0x37:
             cb_swap_a();
+            break;
+        case 0x41:
+            cb_bit_0_c();
             break;
         default:
             unimplemented_cb_instruction(cb_opcode);
@@ -550,11 +671,23 @@ inline int execute_opcode(){
         case 0x0E:
             ld_c_d8();
             break;
+        case 0x11:
+            ld_de_d16();
+            break;
         case 0x16:
             ld_d_d8();
             break;
+        case 0x18:
+            jr_r8();
+            break;
         case 0x19:
             add_hl_de();
+            break;
+        case 0x1A:
+            ld_a_indirect_de();
+            break;
+        case 0x1C:
+            inc_e();
             break;
         case 0x20:
             jr_nz_r8();
@@ -562,14 +695,20 @@ inline int execute_opcode(){
         case 0x21:
             ld_hl_d16();
             break;
+        case 0x22:
+            ldi_indirect_hl_a();
+            break;
         case 0x23:
             inc_hl();
             break;
         case 0x28:
-            jr_z_d8();
+            jr_z_r8();
             break;
         case 0x2A:
             ld_a_hl_inc();
+            break;
+        case 0x2C:
+            inc_l();
             break;
         case 0x2F:
             cpl();
@@ -580,11 +719,23 @@ inline int execute_opcode(){
         case 0x32:
             ldd_hl_a();
             break;
+        case 0x34:
+            inc_indirect_hl();
+            break;
         case 0x36:
             ld_indirect_hl_d8();
             break;
+        case 0x3C:
+            inc_a();
+            break;
+        case 0x3D:
+            dec_a();
+            break;
         case 0x3E:
             ld_a_d8();
+            break;
+        case 0x41:
+            ld_b_c();
             break;
         case 0x47:
             ld_b_a();
@@ -594,6 +745,9 @@ inline int execute_opcode(){
             break;
         case 0x56:
             ld_d_indirect_hl();
+            break;
+        case 0x57:
+            ld_d_a();
             break;
         case 0x5E:
             ld_e_indirect_hl();
@@ -606,6 +760,9 @@ inline int execute_opcode(){
             break;
         case 0x79:
             ld_a_c();
+            break;
+        case 0x82:
+            add_a_d();
             break;
         case 0x87:
             add_a_a();
@@ -631,6 +788,9 @@ inline int execute_opcode(){
         case 0xC0:
             ret_nz();
             break;
+        case 0xC1:
+            pop_bc();
+            break;
         case 0xC3:
             jmp_a16();
             break;
@@ -649,8 +809,14 @@ inline int execute_opcode(){
         case 0xCD:
             call_a16();
             break;
+        case 0xD1:
+            pop_de();
+            break;
         case 0xD5:
             push_de();
+            break;
+        case 0xD9:
+            reti();
             break;
         case 0xE0:
             ldh_a8_a();
@@ -678,6 +844,9 @@ inline int execute_opcode(){
             break;
         case 0xF0:
             ldh_a_a8();
+            break;
+        case 0xF1:
+            pop_af();
             break;
         case 0xF3:
             di();

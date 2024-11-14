@@ -97,8 +97,9 @@ void cp_d8();
 
 void jmp_a16();
 void jmp_hl();
+void jr_r8();
 void jr_nz_r8();
-void jr_z_d8();
+void jr_z_r8();
 
 void xor_a();
 void xor_c();
@@ -109,18 +110,23 @@ void ld_b_d8();
 void ld_a_b();
 void ld_a_c();
 void ld_b_a();
+void ld_b_c();
 void ld_c_a();
+void ld_d_a();
 void ld_e_a();
+void ldi_indirect_hl_a();
 void ldd_hl_a();
 void ld_hl_d16();
 void ld_d_d8();
 void ldh_a8_a();
 void ldh_a_a8();
 void ldh_indirect_c_a();
+void ld_a_indirect_de();
 void ld_d_indirect_hl();
 void ld_e_indirect_hl();
 void ld_indirect_hl_d8();
 void ld_indirect_a16_a();
+void ld_de_d16();
 void ld_sp_d16();
 void ld_a_hl_inc();
 void ld_bc_d16();
@@ -137,10 +143,16 @@ void or_b();
 void or_c();
 
 void add_a_a();
+void add_a_d();
 void add_hl_de();
+void inc_a();
 void inc_c();
+void inc_e();
+void inc_l();
 void inc_hl();
+void inc_indirect_hl();
 
+void dec_a();
 void dec_b();
 void dec_c();
 void dec_bc();
@@ -150,9 +162,13 @@ void push_bc();
 void push_de();
 void push_hl();
 
+void pop_af();
+void pop_bc();
+void pop_de();
 void pop_hl();
 
 void ret();
+void reti();
 void ret_nz();
 void ret_z();
 
@@ -162,6 +178,7 @@ void ei();
 void di();
 
 void cb_swap_a();
+void cb_bit_0_c();
 
 
 #endif
