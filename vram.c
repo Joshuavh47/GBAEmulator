@@ -2,9 +2,11 @@
 #include "cpu.h"
 #include "memory.h"
 
+void init_screen(){
+    unsigned int* screen = malloc(sizeof(int) * 160 * 144);
+}
 
-
-inline void get_tile_color_ids(int arr[]){
+inline void get_tile_color_ids(){
     unsigned short origin;  // Middle of two memory blocks
     if(mem_read_byte(0xFF40)&0x10){   // LCDC bit 4 is set
         origin = 0x8000;
@@ -47,8 +49,8 @@ inline void get_tile_color_ids(int arr[]){
                     full_tile_map[curr_y + i][curr_x + j] = tile_row[j];    // Copy to the big tile map
                 }
             }
-            curr_x += 8;    // Move 8 pixels to the right
-            if(curr_x >= 256){  // If we hit the end, go down 8 pixels
+            curr_x += 8;    // Move 8 pixels (1 tile) to the right
+            if(curr_x >= 256){  // If we hit the end, go down 8 pixels (1 tile)
                 curr_x = 0;
                 curr_y += 8;
             }
@@ -63,6 +65,13 @@ inline void get_tile_row_color_ids(int arr[], unsigned char b1, unsigned char b2
     }
 }
 
-inline void calculate_background(){
-
+inline void render_scanline(){
+    unsigned char scanline = mem_read_byte(0xFF44);
+    unsigned char SCY = mem_read_byte(0xFF42);
+    unsigned char SCX = mem_read_byte(0xFF43);
+    for(int i=0;i<160;i++){
+        screen[(SCY * 160) + i] = palette[full_tile_map[(SCY + scanline) % 256][(SCX + i) % 256]];  // Wrap around when SCY/SCX goes past the tilemap
+    }
+    scanline++; // Update scanline value
+    mem_write_byte(0xFF44, scanline);   // Put new value in memory
 }
