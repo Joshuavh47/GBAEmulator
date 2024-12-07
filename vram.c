@@ -13,8 +13,8 @@ inline void get_tile_color_ids(int arr[]){
         int curr_x = 0; // current x position in the 256 x 256 pixel grid (left)
         int curr_y = 0; // current y position in the 256 x 256 picel grid (top)
         int tile_row[8];
-
-        for(unsigned short current_addr = origin;current_addr<0x9C00;current_addr++){   // Loop through each byte starting from origin until end
+        unsigned short start_addr = mem_read_byte(0xFF40) & 0x8 ? 0x9C00 : 0x9800;  // IF LCDC bit 3 is set, use tilemap at $9C00, otherwise use $9800
+        for(unsigned short current_addr = start_addr;current_addr<start_addr + 0x400;current_addr++){   // Loop through each byte starting from origin until end
             tile_index = mem_read_byte(current_addr);   // Index of the tile in the memory blocks
             tile_addr = mem_read_byte(origin + tile_index * 16);    // Calculate the address at the begining of the tile
             for(int i=0;i<8;i++){
@@ -37,8 +37,8 @@ inline void get_tile_color_ids(int arr[]){
         int curr_x = 0; // current x position in the 256 x 256 pixel grid (left)
         int curr_y = 0; // current y position in the 256 x 256 picel grid (top)
         int tile_row[8];
-
-        for(unsigned short current_addr = origin;current_addr<0x9C00;current_addr++){   // Loop through each byte starting from origin until end
+        unsigned short start_addr = mem_read_byte(0xFF40) & 0x8 ? 0x9C00 : 0x9800;  // IF LCDC bit 3 is set, use tilemap at $9C00, otherwise use $9800
+        for(unsigned short current_addr = start_addr;current_addr<start_addr + 0x400;current_addr++){   // Loop through each byte starting from origin until end
             tile_index = mem_read_byte(current_addr);   // Index of the tile in the memory blocks
             tile_addr = mem_read_byte(origin + tile_index * 16);    // Calculate the address at the begining of the tile
             for(int i=0;i<8;i++){
@@ -64,5 +64,5 @@ inline void get_tile_row_color_ids(int arr[], unsigned char b1, unsigned char b2
 }
 
 inline void calculate_background(){
-    
+
 }
