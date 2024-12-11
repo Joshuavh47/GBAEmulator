@@ -2,8 +2,14 @@
 #include "cpu.h"
 #include "memory.h"
 
+int didUpdate = 1;
+unsigned int* screen;
+int full_tile_map[256][256];
+
+unsigned int palette[4] = {0xFFFFFFFF, 0xFFA0A0A0, 0xFF606060, 0xFF000000};
+
 void init_screen(){
-    unsigned int* screen = malloc(sizeof(int) * 160 * 144);
+    screen = malloc(sizeof(int) * 160 * 144);
 }
 
 inline void get_tile_color_ids(){
@@ -56,6 +62,7 @@ inline void get_tile_color_ids(){
             }
         }
     }
+    didUpdate = 0;
 }
 
 
@@ -69,9 +76,25 @@ inline void render_scanline(){
     unsigned char scanline = mem_read_byte(0xFF44);
     unsigned char SCY = mem_read_byte(0xFF42);
     unsigned char SCX = mem_read_byte(0xFF43);
-    for(int i=0;i<160;i++){
-        screen[(SCY * 160) + i] = palette[full_tile_map[(SCY + scanline) % 256][(SCX + i) % 256]];  // Wrap around when SCY/SCX goes past the tilemap
+    unsigned char interrupt_flags = mem_read_byte(0xFF0F);
+    if(scanline < 144){
+        mem_write_byte(0xFF0F, interrupt_flags & 0xFE);
+        for(int i=0;i<160;i++){
+            screen[(scanline * 160) + i] = palette[full_tile_map[(SCY + scanline) % 256][(SCX + i) % 256]];  // Wrap around when SCY/SCX goes past the tilemap
+        }
+        scanline++; // Update scanline value
+        mem_write_byte(0xFF44, scanline);   // Put new value in memory
+        update_screen();
     }
-    scanline++; // Update scanline value
-    mem_write_byte(0xFF44, scanline);   // Put new value in memory
+    else if(scanline >= 144 && scanline < 153){
+        if(!(interrupt_flags & 0x1)){
+            mem_write_byte(0xFF0F, interrupt_flags | 0x1);
+        }
+        scanline++; // Update scanline value
+        mem_write_byte(0xFF44, scanline);   // Put new value in memory
+    }
+    else{
+        scanline = 0;
+        mem_write_byte(0xFF44, scanline);
+    }
 }

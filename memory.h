@@ -8,6 +8,7 @@ extern unsigned char *rom_bank;
 extern unsigned char *ram_bank;
 extern unsigned char *io_bank;
 extern unsigned char *working_ram;
+extern unsigned char *vram_bank;
 extern unsigned char *high_ram;
 extern unsigned char interrupt_enable;
 unsigned char interrupt_flags;

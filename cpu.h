@@ -99,6 +99,7 @@ void jmp_a16();
 void jmp_hl();
 void jr_r8();
 void jr_nz_r8();
+void jr_nc_r8();
 void jr_z_r8();
 
 void xor_a();
@@ -128,6 +129,7 @@ void ld_indirect_hl_d8();
 void ld_indirect_a16_a();
 void ld_de_d16();
 void ld_sp_d16();
+void ld_indirect_a16_sp();
 void ld_a_hl_inc();
 void ld_bc_d16();
 void ld_a_indirect_a16();
@@ -173,6 +175,7 @@ void ret_nz();
 void ret_z();
 
 void rst_28h();
+void rst_38h();
 
 void ei();
 void di();

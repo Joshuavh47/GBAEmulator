@@ -2,6 +2,7 @@
 #include "cpu.h"
 #include "rom.h"
 #include "memory.h"
+#include "vram.h"
 
 Registers registers;
 unsigned char* rom_data;
@@ -14,6 +15,9 @@ unsigned char interrupt_enable;
 unsigned char interrupt_flags;
 unsigned char *rom_bank;
 unsigned char *ram_bank;
+unsigned char *vram_bank;
+
+int didUpdate;
 
 
 int init_memory(){
@@ -26,6 +30,8 @@ int init_memory(){
 
     io_bank = malloc(0x4C);
     working_ram = malloc(0x4000);
+    vram_bank = malloc(0x2000);
+
     registers.sp = 0xCFFF;
 
     high_ram = malloc(0x7F);
@@ -41,7 +47,12 @@ int init_memory(){
 
 
 inline void mem_write_byte(unsigned short addr, unsigned char data){
-    if(addr >= 0xC000 && addr <= 0xCFFF){
+    if(addr >= 0x8000 && addr < 0x9800){
+        vram_bank[addr-0x8000] = data;
+        didUpdate = 1;
+        printf("%s\n", "WROTE TO BACKGROUND MEM");
+    }
+    else if(addr >= 0xC000 && addr <= 0xCFFF){
         working_ram[addr - 0xC000] = data;
     }
     else if(addr >= 0xFF00 && addr <= 0xFF4B){

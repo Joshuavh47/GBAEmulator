@@ -2,10 +2,14 @@
 #define __VRAM_H__
 
 
-extern int full_tile_map[256][256];
-unsigned int palette[4] = {0xFFFFFFFF, 0xFFA0A0A0, 0xFF606060, 0xFF000000};
+
 extern unsigned int *screen;
+extern int didUpdate;
 
 void get_tile_row_color_ids(int arr[], unsigned char b1, unsigned char b2);
+void get_tile_color_ids();
+void init_screen();
+void render_scanline();
+void update_screen();
 
 #endif

@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "rom.h"
 #include "memory.h"
+#include "vram.h"
 
 Registers registers;
 unsigned char* rom_data;
@@ -10,6 +11,8 @@ unsigned char *ram_bank;
 unsigned char *io_bank;
 unsigned char *high_ram;
 unsigned char interrupt_register;
+unsigned short video_cycles = 0;
+int didUpdate;
 
 void set_flag(unsigned char flag){ //sets a flag
     registers.f|=0x1<<flag;
@@ -103,6 +106,18 @@ inline void jr_nz_r8(){
     signed char offset = memory_read_pc_byte();
     registers.pc++;
     if(get_flag(ZERO)){
+        add_cycles(8);
+    }
+    else{
+        registers.pc += offset;
+        add_cycles(12);
+    }
+}
+
+inline void jr_nc_r8(){
+    signed char offset = memory_read_pc_byte();
+    registers.pc++;
+    if(get_flag(CARRY)){
         add_cycles(8);
     }
     else{
@@ -309,6 +324,14 @@ inline void ld_bc_d16(){
     registers.bc = memory_read_pc_word();
     registers.pc += 2;
     add_cycles(12);
+}
+
+inline void ld_indirect_a16_sp(){
+    unsigned short addr = memory_read_pc_word();
+    registers.pc += 2;
+    mem_write_byte(addr, registers.sp & 0xFF);
+    mem_write_byte(addr + 1, registers.sp >> 8);
+    add_cycles(20);
 }
 
 inline void ld_a_indirect_a16(){
@@ -578,6 +601,12 @@ inline void rst_28h(){
     add_cycles(16);
 }
 
+inline void rst_38h(){
+    stack_write_word(registers.pc);
+    registers.pc = 0x38;
+    add_cycles(16);
+}
+
 inline void ei(){
     registers.interupts = 1;
     add_cycles(4);
@@ -606,6 +635,7 @@ inline void cb_bit_0_c(){
 
 inline void add_cycles(int cycles){
     registers.machine_cycles += cycles;
+    video_cycles += cycles;
 }
 
 void unimplemented_cb_instruction(unsigned char code){
@@ -641,8 +671,7 @@ inline int execute_opcode(){
     unsigned char current_opcode = memory_read_pc_byte();
     
     printf("PC: %#06X Inst: %#04X ", registers.pc, current_opcode);
-    printf("A: %#06X B: %#06X  C: %#06X  D: %#06X  E: %#06X  F: %#06X  H: %#06X  L: %#06X MC: %d\n\n", registers.a, registers.b,
-         registers.c, registers.d, registers.e, registers.f, registers.h, registers.l, registers.machine_cycles);
+    printf("A: %#06X B: %#06X  C: %#06X  D: %#06X  E: %#06X  F: %#06X  H: %#06X  L: %#06X MC: %d\n\n", registers.a, registers.b, registers.c, registers.d, registers.e, registers.f, registers.h, registers.l, registers.machine_cycles);
 
     //printf("PC:%X PC: %02X Flags: %X Interrupts: %X\n", registers.pc, current_opcode, registers.f, interrupt_register);
     registers.pc++;
@@ -658,6 +687,9 @@ inline int execute_opcode(){
             break;
         case 0x06:
             ld_b_d8();
+            break;
+        case 0x08:
+            ld_indirect_a16_sp();
             break;
         case 0x0B:
             dec_bc();
@@ -712,6 +744,9 @@ inline int execute_opcode(){
             break;
         case 0x2F:
             cpl();
+            break;
+        case 0x30:
+            jr_nc_r8();
             break;
         case 0x31:
             ld_sp_d16();
@@ -863,11 +898,24 @@ inline int execute_opcode(){
         case 0xFE:
             cp_d8();
             break;
+        case 0xFF:
+            rst_38h();
+            break;
         default:
             unimplemented_instruction(current_opcode);
             break;
 
 
+    }
+
+    /* Video Timer */
+
+    if(video_cycles >= 456){
+        if(didUpdate){
+            get_tile_color_ids();
+        }
+        render_scanline();
+        video_cycles = 0;
     }
     
     /* Interupt Handling */
@@ -913,7 +961,7 @@ inline int execute_opcode(){
 }
 
 
-
+/*
 int main(int argc, char *argv[]){
     
     // load_rom("/Users/joshuaeres/Downloads/Pokemon Red (UE) [S][!].gb");
@@ -935,6 +983,7 @@ int main(int argc, char *argv[]){
     // }
     load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
     init_memory();
+    init_screen();
     printf("%X\n", registers.pc);
     //void test();
     //test();
@@ -947,3 +996,4 @@ int main(int argc, char *argv[]){
     }
 
 }
+*/

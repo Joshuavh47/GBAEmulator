@@ -1,22 +1,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
-
-#ifdef _WIN32
-#include <SDL/SDL.h> /* Windows-specific SDL2 library */
-#else
-#include <SDL3/SDL.h> /* macOS- and GNU/Linux-specific */
-#endif
-
-#define WIDTH 600
-#define HEIGHT 540
-#define DELAY 3000
+#include "vram.h"
+#include "window.h"
 
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *texture;
 
+unsigned int *screen;
 
-unsigned char *test_bitmap;
+unsigned int *test_bitmap;
 unsigned char *copy_buff;
 unsigned char *copy_buff2;
 int pitch;
@@ -78,6 +71,46 @@ void test(){
         //printf("\n%d\n", ret);
         //printf("%s\n",SDL_GetError());
     }
+}
+
+void init_sdl(){
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s", SDL_GetError());
+    }
+    pitch = TEXTURE_WIDTH*4;
+    window = SDL_CreateWindow("TEST", WIDTH, HEIGHT, SDL_WINDOW_RESIZABLE);
+    renderer = SDL_CreateRenderer(window, NULL);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+}
+
+
+void update_screen(){
     
+    
+    
+    
+    //SDL_Event e;
+    // while(SDL_PollEvent(&e)){
+    //     if(e.type == SDL_EVENT_QUIT){
+    //         SDL_DestroyTexture(texture);
+    //         SDL_DestroyRenderer(renderer);
+    //         SDL_DestroyWindow(window);
+    //         SDL_Quit();
+    //         exit(1);
+    //     }
+    //     if(e.type == SDL_EVENT_WINDOW_RESIZED){
+    //         SDL_SetWindowAspectRatio(window, 1.111111111111f, 1.111111111111f);
+    //     }
+    // }
+    int ret = SDL_LockTexture(texture, NULL, (void**)(&test_bitmap), &pitch);
+    // if(!ret){
+    //     printf("%d %s\n",ret,SDL_GetError());
+    // }
+    SDL_RenderClear(renderer);
+    SDL_memcpy(test_bitmap, screen, TEXTURE_WIDTH * TEXTURE_HEIGHT * sizeof(int));
+    SDL_UnlockTexture(texture);
+    SDL_RenderTexture(renderer,texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
     
 }
+    
