@@ -915,6 +915,7 @@ inline int execute_opcode(){
             get_tile_color_ids();
         }
         render_scanline();
+        test_tiles();
         video_cycles = 0;
     }
     

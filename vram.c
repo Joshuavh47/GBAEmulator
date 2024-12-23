@@ -4,12 +4,15 @@
 
 int didUpdate = 1;
 unsigned int* screen;
+unsigned int* screen2;
 int full_tile_map[256][256];
 
 unsigned int palette[4] = {0xFFFFFFFF, 0xFFA0A0A0, 0xFF606060, 0xFF000000};
 
 void init_screen(){
     screen = malloc(sizeof(int) * 160 * 144);
+    screen2 = malloc(sizeof(int) * 256 * 256);
+    //screen = malloc(sizeof(int) * 256 * 256);
 }
 
 inline void get_tile_color_ids(){
@@ -24,7 +27,7 @@ inline void get_tile_color_ids(){
         unsigned short start_addr = mem_read_byte(0xFF40) & 0x8 ? 0x9C00 : 0x9800;  // IF LCDC bit 3 is set, use tilemap at $9C00, otherwise use $9800
         for(unsigned short current_addr = start_addr;current_addr<start_addr + 0x400;current_addr++){   // Loop through each byte starting from origin until end
             tile_index = mem_read_byte(current_addr);   // Index of the tile in the memory blocks
-            tile_addr = mem_read_byte(origin + tile_index * 16);    // Calculate the address at the begining of the tile
+            tile_addr = origin + tile_index * 16;    // Calculate the address at the begining of the tile
             for(int i=0;i<8;i++){
                 get_tile_row_color_ids(tile_row, mem_read_byte(tile_addr + i * 2), mem_read_byte(tile_addr + i * 2 + 1)); // Calculate a row of tile color IDs
                 for(int j=0;j<8;j++){
@@ -48,7 +51,7 @@ inline void get_tile_color_ids(){
         unsigned short start_addr = mem_read_byte(0xFF40) & 0x8 ? 0x9C00 : 0x9800;  // IF LCDC bit 3 is set, use tilemap at $9C00, otherwise use $9800
         for(unsigned short current_addr = start_addr;current_addr<start_addr + 0x400;current_addr++){   // Loop through each byte starting from origin until end
             tile_index = mem_read_byte(current_addr);   // Index of the tile in the memory blocks
-            tile_addr = mem_read_byte(origin + tile_index * 16);    // Calculate the address at the begining of the tile
+            tile_addr = origin + tile_index * 16;    // Calculate the address at the begining of the tile
             for(int i=0;i<8;i++){
                 get_tile_row_color_ids(tile_row, mem_read_byte(tile_addr + i * 2), mem_read_byte(tile_addr + i * 2 + 1)); // Calculate a row of tile color IDs
                 for(int j=0;j<8;j++){
@@ -68,7 +71,7 @@ inline void get_tile_color_ids(){
 
 inline void get_tile_row_color_ids(int arr[], unsigned char b1, unsigned char b2){
     for(int i=0;i<8;i++){
-        arr[i] = ((b2 >> (7-i)) << 1) | (b2 >> (7-i));
+        arr[i] = (((b2 >> (7-i)) & 0x1) << 1) | ((b1 >> (7-i)) & 0x1);
     }
 }
 
@@ -87,7 +90,7 @@ inline void render_scanline(){
         update_screen();
     }
     else if(scanline >= 144 && scanline < 153){
-        if(!(interrupt_flags & 0x1)){
+        if(!(interrupt_flags & 0x1) && scanline == 144){
             mem_write_byte(0xFF0F, interrupt_flags | 0x1);
         }
         scanline++; // Update scanline value
@@ -97,4 +100,14 @@ inline void render_scanline(){
         scanline = 0;
         mem_write_byte(0xFF44, scanline);
     }
+}
+
+inline void test_tiles(){
+    get_tile_color_ids();
+    for(int i=0;i<256;i++){
+        for(int j=0;j<256;j++){
+            screen2[i*256+j] = palette[full_tile_map[i][j]];
+        }
+    }
+    update_screen2();
 }

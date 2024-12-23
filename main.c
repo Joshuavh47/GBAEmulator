@@ -7,10 +7,18 @@
 
 int main(int argc, char* argv[]){
     load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
+    //load_rom("/Users/joshuaeres/Downloads/cpu_instrs.gb");
     init_memory();
     init_screen();
     init_sdl();
     SDL_Event e;
+    // int test[8];
+    // get_tile_row_color_ids(test, 0x7e, 0x0a);
+    // for(int i=0;i<8;i++){
+    //     printf("%d ", test[i]);
+    // }
+    // printf("%s", "\n");
+
     while(1){
         while(SDL_PollEvent(&e)){
             if(e.type == SDL_EVENT_QUIT){
@@ -25,6 +33,7 @@ int main(int argc, char* argv[]){
             }
         }
         execute_opcode();
+        
     }
 
 
