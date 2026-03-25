@@ -38,7 +38,7 @@ int init_memory(){
 
     mem_write_byte(0xFF00, 0xFF); // Stub joystick IO. 
     printf("Joystick: %#X\n",mem_read_byte(0xFF00));
-    registers.interupts = 1;
+    registers.interrupts = 1;
 
     
 

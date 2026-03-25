@@ -6,7 +6,7 @@
 #include "memory.h"
 
 int main(int argc, char* argv[]){
-    load_rom("/Users/joshuaeres/Downloads/Tetris (JUE) (V1.1) [!].gb");
+    load_rom("/Users/joshuavh47/Downloads/Tetris (JUE) (V1.1) [!].gb");
     //load_rom("/Users/joshuaeres/Downloads/cpu_instrs.gb");
     init_memory();
     init_screen();
